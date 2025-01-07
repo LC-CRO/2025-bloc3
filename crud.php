@@ -1,7 +1,6 @@
 <?php
 session_start();
 require_once('database/db.php');
-
 // Vérification de l'authentification
 if (!isset($_SESSION['token']) || empty($_SESSION['token'])) {
     header("Location: index.php");
@@ -49,6 +48,10 @@ function getVehicleById($conn, $id)
 // Exécuter les actions CREATE, UPDATE, DELETE
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($action === 'create' && isset($_POST['submit_create'])) {
+        if (!hash_equals($_SESSION['csrf_token'], $_POST['csrf_token'])) {
+            die("Requête invalide.");
+        }
+
         $marque = htmlspecialchars($_POST['marque']);
         $modele = htmlspecialchars($_POST['modele']);
         $annee = intval($_POST['annee']);
@@ -66,9 +69,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $error = "Les champs Marque et Modèle sont obligatoires.";
         }
         $action = 'list';
-    }
+    } else if ($action === 'update' && isset($_POST['submit_update']) && $vehicleId) {
+        if (!hash_equals($_SESSION['csrf_token'], $_POST['csrf_token'])) {
+            echo "Requête invalide.";
+            die("Requête invalide.");
+        }
 
-    if ($action === 'update' && isset($_POST['submit_update']) && $vehicleId) {
         $marque = htmlspecialchars($_POST['marque']);
         $modele = htmlspecialchars($_POST['modele']);
         $annee = intval($_POST['annee']);
@@ -86,9 +92,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } else {
             $error = "Les champs Marque et Modèle sont obligatoires.";
         }
-    }
+    } else if ($action === 'delete' && isset($_POST['submit_delete']) && $vehicleId) {
+        if (!hash_equals($_SESSION['csrf_token'], $_POST['csrf_token'])) {
+            die("Requête invalide.");
+        }
 
-    if ($action === 'delete' && isset($_POST['submit_delete']) && $vehicleId) {
         $stmt = $conn->prepare("DELETE FROM vehicules WHERE id = ?");
         $stmt->bind_param("i", $vehicleId);
         if ($stmt->execute()) {
@@ -97,6 +105,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $error = "Erreur lors de la suppression du véhicule.";
         }
         $action = 'list';
+    } else if ($action == "list") {
+        if (!hash_equals($_SESSION['csrf_token'], $_POST['csrf_token'])) {
+            die("Requête invalide.");
+        }
     }
 }
 
@@ -167,11 +179,13 @@ if ($action === 'update' && $vehicleId) {
                                 <form method="POST">
                                     <input type="hidden" name="action" value="update">
                                     <input type="hidden" name="id" value="<?= htmlspecialchars($vehicle['id']) ?>">
+                                    <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['csrf_token']) ?>">
                                     <button type="submit" class="btn btn-warning btn-sm">Modifier</button>
                                 </form>
                                 <form method="POST" onsubmit="return confirm('Confirmez la suppression ?')">
                                     <input type="hidden" name="action" value="delete">
                                     <input type="hidden" name="id" value="<?= htmlspecialchars($vehicle['id']) ?>">
+                                    <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['csrf_token']) ?>">
                                     <button type="submit" name="submit_delete" class="btn btn-danger btn-sm">Supprimer</button>
                                 </form>
                             </div>
@@ -211,6 +225,7 @@ if ($action === 'update' && $vehicleId) {
                             <?php endforeach; ?>
                         </select>
                     </div>
+                    <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['csrf_token']) ?>">
                     <button type="submit" name="submit_<?= $action ?>" class="btn btn-success">Enregistrer</button>
                     <a href="crud.php" class="btn btn-secondary">Annuler</a>
                 </form>

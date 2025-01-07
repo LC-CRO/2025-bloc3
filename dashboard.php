@@ -1,6 +1,23 @@
 <?php
 session_start();
 require_once('database/db.php');
+
+
+// Vérification de l'authentification
+if (!isset($_SESSION['token']) || empty($_SESSION['token'])) {
+    header("Location: index.php");
+    exit();
+}
+
+require_once('security/connexion.php');
+
+if (!isTokenValid($_SESSION['token'])) {
+    session_destroy();
+    header("Location: index.php");
+    exit();
+}
+
+
 $conn = connectDB();
 
 $result = $conn->query("SELECT COUNT(*) AS total_clients FROM clients");
@@ -51,6 +68,7 @@ $totalRendezvous = $row['total_rendezvous'];
                     <p class="text-muted">Nombre total de véhicules enregistrés</p>
                     <form method="POST" action="crud.php" class="d-grid mt-3">
                         <input type="hidden" name="action" value="list">
+                        <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['csrf_token']) ?>">
                         <button type="submit" class="btn btn-primary">Gérer les véhicules</button>
                     </form>
                 </div>
